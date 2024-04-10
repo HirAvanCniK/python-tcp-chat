@@ -1,3 +1,3 @@
 #!/bin/bash
 
-/bin/bash -c 'python3 server.py 11005' &
+/bin/bash -c 'python3 server.py 11005'&

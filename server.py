@@ -44,20 +44,20 @@ def handle_client(client_socket):
                     log.info(message_with_name)
 
                     # Send the message to all clients except the sender
-                    broadcast_message(E_CIPHER.encrypt(pad(message_with_name.encode(), AES.block_size)), client_socket)
+                    broadcast_message(message_with_name, client_socket)
                 except Exception as e:
                     # log.critical(f"Error in client management: {e}")
                     log.warning(f"Client {client_name} has disconnected")
                     clients.remove(client_socket)
                     usernames.pop(client_socket)
-                    broadcast_message(E_CIPHER.encrypt(pad(f"{client_name} has disconnected\n".encode(), AES.block_size)), client_socket)
+                    broadcast_message(f"{client_name} has disconnected\n", client_socket)
                     break
 
 def broadcast_message(message, client_to_exclude):
     for client in clients:
         if client != client_to_exclude:
             try:
-                client.send(unpad(D_CIPHER.decrypt(message), AES.block_size))
+                client.send(message.encode(), AES.block_size)
             except Exception as e:
                 log.warning(f"Error sending message to client: {e}")
                 client.close()
@@ -67,19 +67,10 @@ def broadcast_message(message, client_to_exclude):
 SERVER_KEY = os.urandom(32)
 log.warn(f"Server random key: {SERVER_KEY.hex()}")
 
-# Random server encryption IV
-SERVER_IV = os.urandom(16)
-
-E_CIPHER = AES.new(SERVER_KEY, AES.MODE_CBC, SERVER_IV)
-D_CIPHER = AES.new(SERVER_KEY, AES.MODE_CBC, SERVER_IV)
-
 try:
     PORT = int(sys.argv[1])
 except:
     log.error(f"Usage: python3 {os.path.basename(__file__)} <int:port>")
-
-# Listen on all interfaces
-HOST = '0.0.0.0'
 
 # List for all clients that will connect
 clients = []
@@ -87,10 +78,8 @@ usernames = {}
 
 # Server socket
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server.bind((HOST, PORT))
-
-# Max clients
-server.listen(20)
+server.bind(('127.0.0.1', PORT))
+server.listen()
 
 log.info(f"Listen on {socket.gethostbyname(socket.gethostname())}:{PORT}")
 

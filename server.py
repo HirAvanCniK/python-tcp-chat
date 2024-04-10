@@ -69,6 +69,7 @@ def broadcast_message(message, client_to_exclude):
 SERVER_KEY = os.urandom(32)
 # log.warn(f"Server random key: {SERVER_KEY.hex()}")
 print(f"Server random key: {SERVER_KEY.hex()}")
+open("SERVER_KEY", "w").write(SERVER_KEY.hex())
 
 try:
     PORT = int(sys.argv[1])
@@ -100,5 +101,6 @@ while True:
         client_handler.start()
     except:
         # log.info("Server shutdown...")
-        print("Server shutdown...")
-        break
+        # print("Server shutdown...")
+        # break
+        pass

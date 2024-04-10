@@ -82,7 +82,7 @@ usernames = {}
 
 # Server socket
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server.bind(('127.0.0.1', PORT))
+server.bind(('0.0.0.0', PORT))
 server.listen()
 
 # log.info(f"Listen on {socket.gethostbyname(socket.gethostname())}:{PORT}")

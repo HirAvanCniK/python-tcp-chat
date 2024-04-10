@@ -1,7 +1,5 @@
 import socket, sys, threading, os
 from pwn import log
-from Crypto.Cipher import AES
-from Crypto.Util.Padding import pad, unpad
 
 def handle_client(client_socket):
     # Requires client name
@@ -57,7 +55,7 @@ def broadcast_message(message, client_to_exclude):
     for client in clients:
         if client != client_to_exclude:
             try:
-                client.send(message.encode(), AES.block_size)
+                client.send(message.encode())
             except Exception as e:
                 log.warning(f"Error sending message to client: {e}")
                 client.close()

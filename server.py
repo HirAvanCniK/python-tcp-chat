@@ -78,7 +78,7 @@ SERVER_KEY = os.urandom(32)
 # log.warn(f"Server random key: {SERVER_KEY.hex()}")
 # print(f"Server random key: {SERVER_KEY.hex()}")
 logs(f"Server random key: {SERVER_KEY.hex()}")
-open("SERVER_KEY", "w").write(SERVER_KEY.hex())
+open("SERVER_KEY", "w").write(SERVER_KEY.hex()+"\n")
 
 try:
     PORT = int(sys.argv[1])

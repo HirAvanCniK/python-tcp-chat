@@ -1,28 +1,28 @@
-import socket, sys, threading, os, datetime
+import socket, sys, threading, os, datetime, random, string
 # from pwn import log
 
 def logs(message):
     time = datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-    open("server.log", "a").write(f"[{time}] {message.strip()}\n")
+    open(FILELOG_NAME, "a").write(f"[{time}] {message.strip()}\n")
 
 def handle_client(client_socket):
     # Requires client name
     client_socket.send(b'Insert your name: ')
     client_name = client_socket.recv(1024).decode().strip()
 
-    if(len(client_name) > 20):
-        client_socket.send(b"Name too long\n")
+    if len(client_name) > 20 or len(client_name) < 5:
+        client_socket.send(b"Error: Incorrect name length!\n")
         client_socket.close()
-    elif client_name in usernames.values():
-        client_socket.send(b"Name already used\n")
+    elif client_name in clients.values():
+        client_socket.send(b"Error: Name already used!\n")
         client_socket.close()
     else:
         # Requires server key
-        client_socket.send(b'Insert server authentication key (hex): ')
+        client_socket.send(b'Insert server authentication key: ')
         client_insert_key = client_socket.recv(1024).decode().strip()
 
-        if(client_insert_key != SERVER_KEY.hex()):
-            client_socket.send(b"Invalid key!\nExit from the server...\n")
+        if(client_insert_key != SERVER_KEY):
+            client_socket.send(b"Error: Invalid key!\nExit from the server...\n")
             client_socket.close()
         else:
             # Welcome message
@@ -31,10 +31,9 @@ def handle_client(client_socket):
             # log.warn(f"User logged in as {client_name}")
             # print(f"User logged in as {client_name}")
             logs(f"User logged in as {client_name}")
-            usernames[client_socket] = client_name
 
             # Add the client to the list
-            clients.append(client_socket)
+            clients[client_socket] = client_name
 
             while True:
                 try:
@@ -56,13 +55,12 @@ def handle_client(client_socket):
                     # log.warning(f"Client {client_name} has disconnected")
                     # print(f"Client {client_name} has disconnected")
                     logs(f"Client {client_name} has disconnected")
-                    clients.remove(client_socket)
-                    usernames.pop(client_socket)
+                    clients.pop(client_socket)
                     broadcast_message(f"{client_name} has disconnected\n", client_socket)
                     break
 
 def broadcast_message(message, client_to_exclude):
-    for client in clients:
+    for client in clients.keys():
         if client != client_to_exclude:
             try:
                 client.send(message.encode())
@@ -71,48 +69,70 @@ def broadcast_message(message, client_to_exclude):
                 # print(f"Error sending message to client: {e}")
                 logs(f"Error sending message to client: {e}")
                 client.close()
-                clients.remove(client)
-                usernames.pop(client)
+                clients.pop(client)
 
-SERVER_KEY = os.urandom(32)
-# log.warn(f"Server random key: {SERVER_KEY.hex()}")
-# print(f"Server random key: {SERVER_KEY.hex()}")
-logs(f"Server random key: {SERVER_KEY.hex()}")
-open("SERVER_KEY", "w").write(SERVER_KEY.hex()+"\n")
+def get_params():
+    if len(sys.argv) == 3:
+        try:
+            return int(sys.argv[1]), sys.argv[2]
+        except:
+            return None
+    elif len(sys.argv) == 2:
+        return int(sys.argv[1]), random.choices(string.ascii_letters+string.digits, k=10)
+    else:
+        return None
 
-try:
-    PORT = int(sys.argv[1])
-except:
-    # log.error(f"Usage: python3 {os.path.basename(__file__)} <int:port>")
-    print(f"Usage: python3 {os.path.basename(__file__)} <int:port>")
+if __name__ == "__main__":
+    params = get_params()
+    if params is None:
+        print(f"Usage: python3 {os.path.basename(__file__)} <int:port> [str:server_key]")
+    elif len(params[1]) < 5:
+        print(f"Error: Incorrect server_key length!")
+    else:
+        PORT, SERVER_KEY = params
+        time = datetime.datetime.now().strftime("%d.%m.%Y %H.%M.%S")
+        FILELOG_NAME = f"pychat_{time}.log"
 
-# List for all clients that will connect
-clients = []
-usernames = {}
+    # log.warn(f"Server random key: {SERVER_KEY.hex()}")
+    print(f"Server key: {SERVER_KEY}")
+    logs(f"Server key: {SERVER_KEY}")
+    open("server.key", "w").write(SERVER_KEY+"\n")
 
-# Server socket
-server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server.bind(('0.0.0.0', PORT))
-server.listen()
+    # List for all clients that will connect
+    clients = {}
 
-# log.info(f"Listen on {socket.gethostbyname(socket.gethostname())}:{PORT}")
-# print(f"Listen on {socket.gethostbyname(socket.gethostname())}:{PORT}")
-logs(f"Listen on {socket.gethostbyname(socket.gethostname())}:{PORT}")
+    # Server socket
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.bind(('0.0.0.0', PORT))
+    server.listen()
 
-while True:
-    try:
-        # Accept a client connection
-        client_sock, client_addr = server.accept()
-        # log.success(f"Connection accepted {client_addr[0]}:{client_addr[1]}")
-        # print(f"Connection accepted {client_addr[0]}:{client_addr[1]}")
-        logs(f"Connection accepted {client_addr[0]}:{client_addr[1]}")
+    # Max number of clients
+    LIMIT = 20
 
-        # Thread to manage the client
-        client_handler = threading.Thread(target=handle_client, args=(client_sock,))
-        client_handler.start()
-    except:
-        # log.info("Server shutdown...")
-        # print("Server shutdown...")
-        # logs("Server shutdown...")
-        # break
-        pass
+    # log.info(f"Listen on {socket.gethostbyname(socket.gethostname())}:{PORT}")
+    # print(f"Listen on {socket.gethostbyname(socket.gethostname())}:{PORT}")
+    logs(f"Listen on {socket.gethostbyname(socket.gethostname())}:{PORT}")
+
+    while True:
+        try:
+            # Accept a client connection
+            client_sock, client_addr = server.accept()
+
+            # Accepts client connection only if connected clients are less than the LIMIT
+            if len(clients) < LIMIT:
+                # log.success(f"Connection accepted {client_addr[0]}:{client_addr[1]}")
+                # print(f"Connection accepted {client_addr[0]}:{client_addr[1]}")
+                logs(f"Connection accepted {client_addr[0]}:{client_addr[1]}")
+
+                # Thread to manage the client
+                client_handler = threading.Thread(target=handle_client, args=(client_sock,))
+                client_handler.start()
+            else:
+                client_sock.send(b"Error: Clients limit reached!\n")
+                client_sock.close()
+        except:
+            # log.info("Server shutdown...")
+            # print("Server shutdown...")
+            # logs("Server shutdown...")
+            # break
+            pass
